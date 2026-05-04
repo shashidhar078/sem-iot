@@ -1,147 +1,186 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import axios from 'axios'
-import { AlertTriangle, ReceiptText, RotateCcw, ScanLine, Sparkles, Wallet, X } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from "framer-motion";
+import axios from "axios";
+import {
+  AlertTriangle,
+  ReceiptText,
+  RotateCcw,
+  ScanLine,
+  Sparkles,
+  Wallet,
+  X,
+} from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Link,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 type CartItem = {
-  uid: string
-  name: string
-  price: number
-  quantity: number
-  lineTotal: number
-}
+  uid: string;
+  name: string;
+  price: number;
+  quantity: number;
+  lineTotal: number;
+};
 
 type CartResponse = {
-  items: CartItem[]
-  total: number
-}
+  items: CartItem[];
+  total: number;
+};
 
 type BillResponse = {
-  billId: string
-  items: CartItem[]
-  total: number
-  createdAt: string
-}
+  billId: string;
+  items: CartItem[];
+  total: number;
+  createdAt: string;
+};
+
+type BillsResponse = BillResponse[];
 
 type Toast = {
-  id: number
-  kind: 'success' | 'error' | 'info'
-  message: string
-}
+  id: number;
+  kind: "success" | "error" | "info";
+  message: string;
+};
 
 const api = axios.create({
-  baseURL: '/api',
-})
+  baseURL: "/api",
+});
 
-const card = 'rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl'
+const card =
+  "rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl";
 
 function App() {
-  const [cart, setCart] = useState<CartResponse>({ items: [], total: 0 })
-  const [latestBillId, setLatestBillId] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [isPaying, setIsPaying] = useState(false)
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
-  const [notice, setNotice] = useState('Waiting for RFID scans...')
-  const [lastScannedUid, setLastScannedUid] = useState('')
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const previousItemsRef = useRef<CartItem[]>([])
-  const backendErrorNotifiedRef = useRef(false)
-  const location = useLocation()
+  const [cart, setCart] = useState<CartResponse>({ items: [], total: 0 });
+  const [latestBillId, setLatestBillId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPaying, setIsPaying] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [notice, setNotice] = useState("Waiting for RFID scans...");
+  const [lastScannedUid, setLastScannedUid] = useState("");
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const previousItemsRef = useRef<CartItem[]>([]);
+  const backendErrorNotifiedRef = useRef(false);
+  const location = useLocation();
 
-  const pushToast = (kind: Toast['kind'], message: string) => {
-    const id = Date.now() + Math.floor(Math.random() * 1000)
-    setToasts((prev) => [...prev, { id, kind, message }])
+  const pushToast = (kind: Toast["kind"], message: string) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setToasts((prev) => [...prev, { id, kind, message }]);
     window.setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id))
-    }, 3200)
-  }
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3200);
+  };
 
   useEffect(() => {
     const loadCart = async () => {
       try {
-        const { data } = await api.get<CartResponse>('/cart')
-        const previousItems = previousItemsRef.current
-        const previousTotalItems = previousItems.reduce((sum, item) => sum + item.quantity, 0)
-        const nextTotalItems = data.items.reduce((sum, item) => sum + item.quantity, 0)
+        const { data } = await api.get<CartResponse>("/cart");
+        const previousItems = previousItemsRef.current;
+        const previousTotalItems = previousItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0,
+        );
+        const nextTotalItems = data.items.reduce(
+          (sum, item) => sum + item.quantity,
+          0,
+        );
         if (nextTotalItems > previousTotalItems) {
-          const previousMap = new Map(previousItems.map((item) => [item.uid, item.quantity]))
-          const updated = data.items.find((item) => (previousMap.get(item.uid) || 0) < item.quantity)
+          const previousMap = new Map(
+            previousItems.map((item) => [item.uid, item.quantity]),
+          );
+          const updated = data.items.find(
+            (item) => (previousMap.get(item.uid) || 0) < item.quantity,
+          );
           if (updated) {
-            setLastScannedUid(updated.uid)
-            setNotice(`Scanned: ${updated.name} (${updated.uid})`)
-            pushToast('success', `${updated.name} added to cart`)
+            setLastScannedUid(updated.uid);
+            setNotice(`Scanned: ${updated.name} (${updated.uid})`);
+            pushToast("success", `${updated.name} added to cart`);
           }
         }
-        previousItemsRef.current = data.items
-        backendErrorNotifiedRef.current = false
-        setCart(data)
+        previousItemsRef.current = data.items;
+        backendErrorNotifiedRef.current = false;
+        setCart(data);
       } catch {
-        setNotice('Backend unreachable. Start server on port 5000.')
+        setNotice("Backend unreachable. Start server on port 5000.");
         if (!backendErrorNotifiedRef.current) {
-          pushToast('error', 'Could not connect to backend')
-          backendErrorNotifiedRef.current = true
+          pushToast("error", "Could not connect to backend");
+          backendErrorNotifiedRef.current = true;
         }
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadCart()
-    const id = window.setInterval(loadCart, 2000)
-    return () => window.clearInterval(id)
-  }, [])
+    loadCart();
+    const id = window.setInterval(loadCart, 2000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const itemCount = useMemo(
     () => cart.items.reduce((acc, item) => acc + item.quantity, 0),
     [cart.items],
-  )
+  );
 
   const payNow = async () => {
     try {
-      setIsPaying(true)
-      const { data } = await api.post<{ billId: string }>('/pay')
-      setLatestBillId(data.billId)
-      setNotice(`Payment successful: ${data.billId}`)
-      const next = await api.get<CartResponse>('/cart')
-      setCart(next.data)
-      pushToast('success', 'Payment successful and invoice generated')
-      return data.billId
+      setIsPaying(true);
+      const { data } = await api.post<{ billId: string }>("/pay");
+      setLatestBillId(data.billId);
+      setNotice(`Payment successful: ${data.billId}`);
+      const next = await api.get<CartResponse>("/cart");
+      setCart(next.data);
+      pushToast("success", "Payment successful and invoice generated");
+      return data.billId;
     } catch {
-      pushToast('error', 'Payment failed. Please retry.')
-      throw new Error('Payment failed')
+      pushToast("error", "Payment failed. Please retry.");
+      throw new Error("Payment failed");
     } finally {
-      setIsPaying(false)
+      setIsPaying(false);
     }
-  }
+  };
 
   const resetCart = async () => {
     try {
-      await api.delete('/cart')
-      setCart({ items: [], total: 0 })
-      setShowResetConfirm(false)
-      setNotice('Cart reset successfully')
-      pushToast('info', 'Cart was reset')
+      await api.delete("/cart");
+      setCart({ items: [], total: 0 });
+      setShowResetConfirm(false);
+      setNotice("Cart reset successfully");
+      pushToast("info", "Cart was reset");
     } catch {
-      pushToast('error', 'Unable to reset cart')
+      pushToast("error", "Unable to reset cart");
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-[#070b14] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.35),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.25),transparent_30%),radial-gradient(circle_at_50%_100%,rgba(245,158,11,0.2),transparent_35%)]" />
       <main className="relative mx-auto max-w-6xl p-6 md:p-10">
-        <header className={`${card} mb-6 flex flex-wrap items-center justify-between gap-4 p-5`}>
+        <header
+          className={`${card} mb-6 flex flex-wrap items-center justify-between gap-4 p-5`}
+        >
           <div>
             <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-indigo-300">
               <Sparkles size={14} /> ESIOT Premium Console
             </p>
-            <h1 className="mt-1 text-2xl font-semibold md:text-3xl">Smart RFID Billing</h1>
+            <h1 className="mt-1 text-2xl font-semibold md:text-3xl">
+              Smart RFID Billing
+            </h1>
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <NavButton to="/" icon={<ScanLine size={16} />} label="Cart" />
-            <NavButton to="/payment" icon={<Wallet size={16} />} label="Payment" />
-            <NavButton to={`/bill/${latestBillId || 'latest'}`} icon={<ReceiptText size={16} />} label="Bill" />
+            <NavButton
+              to="/payment"
+              icon={<Wallet size={16} />}
+              label="Payment"
+            />
+            <NavButton
+              to="/bills"
+              icon={<ReceiptText size={16} />}
+              label="Bills"
+            />
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
@@ -153,7 +192,9 @@ function App() {
           </div>
         </header>
 
-        <section className={`${card} mb-6 flex flex-wrap items-center justify-between gap-3 p-4`}>
+        <section
+          className={`${card} mb-6 flex flex-wrap items-center justify-between gap-3 p-4`}
+        >
           <p className="text-sm text-slate-200">{notice}</p>
           <div className="flex gap-2">
             <Metric label="Items" value={itemCount.toString()} />
@@ -172,7 +213,13 @@ function App() {
             <Routes>
               <Route
                 path="/"
-                element={<CartPage cart={cart} isLoading={isLoading} lastScannedUid={lastScannedUid} />}
+                element={
+                  <CartPage
+                    cart={cart}
+                    isLoading={isLoading}
+                    lastScannedUid={lastScannedUid}
+                  />
+                }
               />
               <Route
                 path="/payment"
@@ -186,7 +233,7 @@ function App() {
                 }
               />
               <Route
-                path="/bill/:id"
+                path="/bills"
                 element={<BillPage fallbackBillId={latestBillId} />}
               />
             </Routes>
@@ -204,10 +251,15 @@ function App() {
           )}
         </AnimatePresence>
 
-        <ToastStack toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((toast) => toast.id !== id))} />
+        <ToastStack
+          toasts={toasts}
+          onDismiss={(id) =>
+            setToasts((prev) => prev.filter((toast) => toast.id !== id))
+          }
+        />
       </main>
     </div>
-  )
+  );
 }
 
 function NavButton({
@@ -215,9 +267,9 @@ function NavButton({
   label,
   icon,
 }: {
-  to: string
-  label: string
-  icon: ReactNode
+  to: string;
+  label: string;
+  icon: ReactNode;
 }) {
   return (
     <Link
@@ -227,7 +279,7 @@ function NavButton({
       {icon}
       {label}
     </Link>
-  )
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -236,7 +288,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs uppercase text-emerald-300">{label}</p>
       <p className="font-semibold">{value}</p>
     </div>
-  )
+  );
 }
 
 function CartPage({
@@ -244,21 +296,46 @@ function CartPage({
   isLoading,
   lastScannedUid,
 }: {
-  cart: CartResponse
-  isLoading: boolean
-  lastScannedUid: string
+  cart: CartResponse;
+  isLoading: boolean;
+  lastScannedUid: string;
 }) {
+  const [removingUids, setRemovingUids] = useState<Set<string>>(new Set());
+
+  const removeItem = async (uid: string) => {
+    setRemovingUids((prev) => new Set(prev).add(uid));
+    try {
+      const { data } = await api.delete(`/cart/${uid}`);
+      setCart(data.cart);
+      pushToast("success", "Item removed from cart");
+    } catch {
+      pushToast("error", "Failed to remove item");
+    } finally {
+      setRemovingUids((prev) => {
+        const next = new Set(prev);
+        next.delete(uid);
+        return next;
+      });
+    }
+  };
+
   if (isLoading) {
-    return <div className={`${card} p-6 text-center text-slate-300`}>Loading cart...</div>
+    return (
+      <div className={`${card} p-6 text-center text-slate-300`}>
+        Loading cart...
+      </div>
+    );
   }
 
   if (!cart.items.length) {
     return (
       <div className={`${card} p-10 text-center text-slate-300`}>
         <p className="text-xl font-medium text-white">Cart is empty</p>
-        <p className="mt-2 text-sm">Scan RFID tags to populate products in real time.</p>
+        <p className="mt-2 text-sm">
+          Scan RFID tags to populate products in real time.
+        </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -271,6 +348,7 @@ function CartPage({
             <th className="px-4 py-3">Qty</th>
             <th className="px-4 py-3">Price</th>
             <th className="px-4 py-3">Line Total</th>
+            <th className="px-4 py-3">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -278,7 +356,7 @@ function CartPage({
             <tr
               key={item.uid}
               className={`border-t border-white/10 transition hover:bg-white/5 ${
-                lastScannedUid === item.uid ? 'bg-emerald-400/10' : ''
+                lastScannedUid === item.uid ? "bg-emerald-400/10" : ""
               }`}
             >
               <td className="px-4 py-3 font-medium">{item.name}</td>
@@ -286,12 +364,22 @@ function CartPage({
               <td className="px-4 py-3">{item.quantity}</td>
               <td className="px-4 py-3">Rs {item.price}</td>
               <td className="px-4 py-3">Rs {item.lineTotal}</td>
+              <td className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.uid)}
+                  disabled={removingUids.has(item.uid)}
+                  className="rounded-lg border border-rose-300/30 bg-rose-500/10 px-3 py-1 text-sm text-rose-100 transition hover:border-rose-300/60 hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  {removingUids.has(item.uid) ? "Removing..." : "Remove"}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
 function PaymentPage({
@@ -300,23 +388,23 @@ function PaymentPage({
   onPay,
   onSuccess,
 }: {
-  cart: CartResponse
-  isPaying: boolean
-  onPay: () => Promise<string>
-  onSuccess: (id: string) => void
+  cart: CartResponse;
+  isPaying: boolean;
+  onPay: () => Promise<string>;
+  onSuccess: (id: string) => void;
 }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handlePay = async () => {
-    if (!cart.items.length || isPaying) return
+    if (!cart.items.length || isPaying) return;
     try {
-      const billId = await onPay()
-      onSuccess(billId)
-      navigate(`/bill/${billId}`)
+      const billId = await onPay();
+      onSuccess(billId);
+      navigate(`/bill/${billId}`);
     } catch {
       // Toast feedback is already handled in parent onPay.
     }
-  }
+  };
 
   return (
     <div className={`${card} p-6`}>
@@ -330,59 +418,122 @@ function PaymentPage({
         disabled={!cart.items.length || isPaying}
         className="rounded-xl bg-gradient-to-r from-indigo-500 to-emerald-500 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-800/40 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {isPaying ? 'Processing payment...' : 'Pay Now'}
+        {isPaying ? "Processing payment..." : "Pay Now"}
       </button>
     </div>
-  )
+  );
 }
 
 function BillPage({ fallbackBillId }: { fallbackBillId: string }) {
-  const location = useLocation()
-  const billId = location.pathname.split('/').pop() || fallbackBillId
-  const [bill, setBill] = useState<BillResponse | null>(null)
-  const [error, setError] = useState('')
+  const location = useLocation();
+  const billId = location.pathname.split("/").pop() || fallbackBillId;
+  const [bills, setBills] = useState<BillsResponse>([]);
+  const [selectedBill, setSelectedBill] = useState<BillResponse | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBill = async () => {
-      if (!billId || billId === 'latest') return
+    const fetchBills = async () => {
       try {
-        const { data } = await api.get<BillResponse>(`/bill/${billId}`)
-        setBill(data)
+        const { data } = await api.get<BillsResponse>("/bills");
+        setBills(data);
+        if (billId && billId !== "latest") {
+          const bill = data.find((b) => b.billId === billId.toUpperCase());
+          setSelectedBill(bill || null);
+        } else if (data.length > 0) {
+          setSelectedBill(data[0]);
+        }
       } catch {
-        setError('Bill not available yet. Complete payment first.')
+        setError("Failed to load bills.");
+      } finally {
+        setLoading(false);
       }
-    }
-    fetchBill()
-  }, [billId])
+    };
+    fetchBills();
+  }, [billId]);
 
-  if (error) {
-    return <div className={`${card} p-6 text-rose-200`}>{error}</div>
+  if (loading) {
+    return (
+      <div className={`${card} p-6 text-center text-slate-300`}>
+        Loading bills...
+      </div>
+    );
   }
 
-  if (!bill) {
-    return <div className={`${card} p-6 text-slate-300`}>Waiting for payment receipt...</div>
+  if (error) {
+    return <div className={`${card} p-6 text-rose-200`}>{error}</div>;
+  }
+
+  if (!bills.length) {
+    return (
+      <div className={`${card} p-6 text-slate-300`}>
+        No bills found. Complete a payment to generate invoices.
+      </div>
+    );
   }
 
   return (
-    <div className={`${card} p-6`}>
-      <h2 className="text-2xl font-semibold">Invoice {bill.billId}</h2>
-      <p className="mb-4 text-sm text-slate-300">
-        Generated at {new Date(bill.createdAt).toLocaleString()}
-      </p>
-      <div className="space-y-2">
-        {bill.items.map((item) => (
-          <div key={item.uid} className="flex justify-between rounded-lg bg-white/5 px-4 py-3">
-            <span>{item.name} x {item.quantity}</span>
-            <span>Rs {item.lineTotal}</span>
+    <div className="space-y-6">
+      <div className={`${card} p-6`}>
+        <h2 className="text-2xl font-semibold mb-4">Previous Bills</h2>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {bills.map((bill) => (
+            <div
+              key={bill.billId}
+              onClick={() => setSelectedBill(bill)}
+              className={`cursor-pointer rounded-lg border px-4 py-3 transition hover:bg-white/5 ${
+                selectedBill?.billId === bill.billId
+                  ? "border-indigo-300/50 bg-indigo-400/10"
+                  : "border-white/10 bg-white/5"
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-medium">{bill.billId}</span>
+                <span className="text-sm text-slate-300">
+                  {new Date(bill.createdAt).toLocaleDateString()}{" "}
+                  {new Date(bill.createdAt).toLocaleTimeString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-sm text-slate-400">
+                  {bill.items.length} items
+                </span>
+                <span className="font-semibold">Rs {bill.total}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {selectedBill && (
+        <div className={`${card} p-6`}>
+          <h3 className="text-xl font-semibold mb-2">
+            Invoice {selectedBill.billId}
+          </h3>
+          <p className="mb-4 text-sm text-slate-300">
+            Generated at {new Date(selectedBill.createdAt).toLocaleString()}
+          </p>
+          <div className="space-y-2">
+            {selectedBill.items.map((item) => (
+              <div
+                key={item.uid}
+                className="flex justify-between rounded-lg bg-white/5 px-4 py-3"
+              >
+                <span>
+                  {item.name} x {item.quantity}
+                </span>
+                <span>Rs {item.lineTotal}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-lg font-semibold">
-        <span>Total</span>
-        <span>Rs {bill.total}</span>
-      </div>
+          <div className="mt-4 flex justify-between border-t border-white/10 pt-4 text-lg font-semibold">
+            <span>Total</span>
+            <span>Rs {selectedBill.total}</span>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
 function ConfirmModal({
@@ -391,10 +542,10 @@ function ConfirmModal({
   onCancel,
   onConfirm,
 }: {
-  title: string
-  description: string
-  onCancel: () => void
-  onConfirm: () => void
+  title: string;
+  description: string;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
   return (
     <motion.div
@@ -441,15 +592,15 @@ function ConfirmModal({
         </div>
       </motion.div>
     </motion.div>
-  )
+  );
 }
 
 function ToastStack({
   toasts,
   onDismiss,
 }: {
-  toasts: Toast[]
-  onDismiss: (id: number) => void
+  toasts: Toast[];
+  onDismiss: (id: number) => void;
 }) {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-40 flex w-[320px] flex-col gap-2">
@@ -461,11 +612,11 @@ function ToastStack({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             className={`pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl ${
-              toast.kind === 'success'
-                ? 'border-emerald-300/30 bg-emerald-500/20 text-emerald-100'
-                : toast.kind === 'error'
-                  ? 'border-rose-300/30 bg-rose-500/20 text-rose-100'
-                  : 'border-indigo-300/30 bg-indigo-500/20 text-indigo-100'
+              toast.kind === "success"
+                ? "border-emerald-300/30 bg-emerald-500/20 text-emerald-100"
+                : toast.kind === "error"
+                  ? "border-rose-300/30 bg-rose-500/20 text-rose-100"
+                  : "border-indigo-300/30 bg-indigo-500/20 text-indigo-100"
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -482,7 +633,7 @@ function ToastStack({
         ))}
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

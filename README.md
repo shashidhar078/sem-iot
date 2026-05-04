@@ -1,6 +1,7 @@
 # Smart RFID Billing System (ESIOT)
 
 End-to-end local setup with:
+
 - `server/`: Express + MongoDB APIs
 - `client/`: React + Vite premium UI
 
@@ -30,6 +31,8 @@ npm run dev
 
 Frontend URL: `http://localhost:5173`
 
+Navigation: Cart (with remove buttons) | Payment | Bills (list all previous bills)
+
 ## 4) APIs
 
 - `POST /scan`
@@ -41,8 +44,10 @@ Frontend URL: `http://localhost:5173`
   - Creates bill and clears cart
 - `GET /bill/:id`
   - Returns generated invoice
-- `DELETE /cart`
-  - Clears cart manually
+- `DELETE /cart/:uid`
+  - Remove specific item from cart
+- `GET /bills`
+  - List all generated bills
 - `GET /products`
   - List all mapped RFID products
 - `POST /products`
