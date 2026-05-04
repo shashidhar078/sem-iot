@@ -13,7 +13,7 @@ const cartItemSchema = new mongoose.Schema(
 
 const cartSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true, unique: true, default: "active-cart" },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     items: { type: [cartItemSchema], default: [] },
     total: { type: Number, default: 0 },
   },

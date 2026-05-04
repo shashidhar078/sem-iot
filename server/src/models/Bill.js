@@ -14,6 +14,9 @@ const billItemSchema = new mongoose.Schema(
 const billSchema = new mongoose.Schema(
   {
     billId: { type: String, required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    customerName: { type: String, required: true },
+    customerPhone: { type: String, required: true },
     items: { type: [billItemSchema], required: true },
     total: { type: Number, required: true },
     paymentStatus: { type: String, default: "success" },
