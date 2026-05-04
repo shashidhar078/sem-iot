@@ -1,90 +1,126 @@
 # Smart RFID Billing System (ESIOT)
 
-End-to-end local setup with:
+A modern, full-stack IoT billing application designed for rapid, seamless checkout experiences. This system bridges the gap between hardware (ESP32 RFID Scanners) and software, providing a completely automated billing ecosystem that drastically reduces checkout times and eliminates manual billing errors.
 
-- `server/`: Express + MongoDB APIs
-- `client/`: React + Vite premium UI
+## 🌟 About the System & Its Importance
 
-## 1) Prerequisites
+In traditional retail or cafeteria environments, the billing process creates severe bottlenecks. Customers must wait for an attendant to manually scan or input every single item. 
 
-- Node.js 20+
-- Local MongoDB running on `mongodb://127.0.0.1:27017`
+**ESIOT** solves this by leveraging RFID technology integrated directly into a dynamic web ecosystem. When items tagged with RFID stickers are passed over an ESP32 scanner, they are instantaneously added to the active customer's digital cart. 
 
-## 2) Start Backend
+**Key Benefits:**
+- **Frictionless Checkout:** Items are added instantly without manual entry.
+- **Hardware-Software Sync:** The frontend dynamically polls the backend (every 2 seconds) so the UI updates automatically as soon as the ESP32 registers a scan. No page refreshes required.
+- **Hardware Fault Tolerance:** Includes built-in cooldowns (`SCAN_COOLDOWN_MS`) to ignore duplicate scans caused by sensor bounce, ensuring accurate billing.
+- **Digital Receipts:** Paperless billing is enforced through an integrated **Twilio WhatsApp API**, automatically sending formatted digital receipts directly to the customer's phone upon successful wallet payment.
 
-```bash
-cd server
-copy .env.example .env
-npm install
-npm run dev
+## 🚀 Tech Stack
+
+- **Frontend:** React, Vite, TailwindCSS v4, Framer Motion, Lucide React
+- **Backend:** Node.js, Express.js, MongoDB (Mongoose)
+- **Integrations:** Twilio REST API (WhatsApp Sandbox)
+- **Hardware Interface:** Standard HTTP POST from ESP32/Arduino
+
+## 📁 Project Structure
+
+The project has been refactored into a clean, modular architecture:
+
+```text
+sem-iot/
+├── client/                 # React Frontend
+│   ├── src/
+│   │   ├── api/            # Axios instance & interceptors
+│   │   ├── components/     # Reusable UI (Guards, Modals, Toasts)
+│   │   ├── pages/          # Full page views (Admin, Customer, Login)
+│   │   └── types/          # TypeScript interfaces
+│   └── vite.config.ts      # Vite config with IPv4 strict proxy
+└── server/                 # Express Backend
+    ├── src/
+    │   ├── models/         # Mongoose Schemas (User, Product, Cart, Bill)
+    │   ├── routes/         # Modular feature routers (auth, cart, scan, pay, etc.)
+    │   ├── utils/          # Helper logic & user resolution
+    │   ├── store.js        # Global state for hardware-to-user routing
+    │   └── server.js       # Main entry & MongoDB connection
+    └── .env                # Secrets and configuration
 ```
 
-Backend URL: `http://localhost:5000`
+## ⚙️ Prerequisites
 
-## 3) Start Frontend
+- **Node.js** (v18 or higher recommended)
+- **MongoDB** (Local `127.0.0.1:27017` or Atlas cluster)
+- **Twilio Account** (For WhatsApp receipts)
 
+## 🛠️ Installation & Run Guide
+
+### 1. Backend Setup
+
+Open a terminal and navigate to the server folder:
+```bash
+cd server
+npm install
+```
+
+Create a `.env` file in the `server` directory. Here is the template you must follow:
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://<your-cluster-url>
+# Behavior configurations
+SCAN_COOLDOWN_MS=900
+REMOVE_ON_RESCAN=false
+# Twilio Config
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+```
+
+Start the backend:
+```bash
+npm run dev
+```
+*The server will run on `http://localhost:5000`.*
+
+### 2. Frontend Setup
+
+Open a **new** terminal and navigate to the client folder:
 ```bash
 cd client
 npm install
-npm run dev
 ```
 
-Frontend URL: `http://localhost:5173`
+Start the frontend:
+```bash
+npm run dev
+```
+*The React app will be available at `http://localhost:5173`.*
 
-Navigation: Cart (with remove buttons) | Payment | Bills (list all previous bills)
+> **Login Credentials:** On first boot, the system automatically creates an admin account:
+> - **Email:** `admin@esiot.com`
+> - **Password:** `admin123`
 
-## 4) APIs
+## 📡 API Endpoints (Quick Reference)
 
-- `POST /scan`
-  - Body: `{ "uid": "123ABC" }`
-  - Adds/increments product in cart (or decrements when remove mode enabled)
-- `GET /cart`
-  - Returns active cart
-- `POST /pay`
-  - Creates bill and clears cart
-- `GET /bill/:id`
-  - Returns generated invoice
-- `DELETE /cart/:uid`
-  - Remove specific item from cart
-- `GET /bills`
-  - List all generated bills
-- `GET /products`
-  - List all mapped RFID products
-- `POST /products`
-  - Add product mapping
-- `PUT /products/:uid`
-  - Update product details
-- `DELETE /products/:uid`
-  - Remove product mapping
+- **Auth:** `POST /auth/login`, `POST /auth/signup`
+- **Scan (Hardware):** `POST /scan` (Body: `{ "uid": "CARD_HEX" }`)
+- **Cart:** `GET /cart`, `DELETE /cart`, `DELETE /cart/:uid`
+- **Wallet:** `GET /wallet`, `POST /wallet/add`
+- **Payment:** `POST /pay` (Validates wallet, creates bill, triggers WhatsApp)
+- **Products:** `GET /products`, `PUT /products/:uid`
 
-## 5) ESP32 Integration Target
+## 🔌 Hardware Integration (ESP32)
 
-Send HTTP request to:
+To connect your ESP32 scanner to the system, program it to make an HTTP POST request every time a card is tapped.
 
-- URL: `http://<your-laptop-ip>:5000/scan`
-- Method: `POST`
-- JSON:
+- **URL:** `http://<YOUR-LAPTOP-IP>:5000/scan` *(Do not use `localhost` on the ESP32!)*
+- **Method:** `POST`
+- **Headers:** `Content-Type: application/json`
+- **Payload:**
   ```json
   {
     "uid": "A1B2C3D4"
   }
   ```
 
-Use your machine's LAN IP, not `localhost`, when calling from ESP32.
-
-## 6) Optional Scan Behavior Controls
-
-Configure in `server/.env`:
-
-- `SCAN_COOLDOWN_MS=900`
-  - Ignores very fast duplicate scans from RFID bounce
-- `REMOVE_ON_RESCAN=false`
-  - `false`: scan same UID again to increase quantity
-  - `true`: scan same UID again to decrease/remove quantity
-
-## 7) Seeded RFID Products
-
-- `123ABC` -> Milk (Rs 50)
-- `A1B2C3D4` -> Bread (Rs 35)
-- `9F8E7D6C` -> Juice (Rs 90)
-- `5566AABB` -> Chocolate (Rs 120)
+### Hardware Safeguards
+You can tweak how the backend responds to the scanner using `.env` variables:
+- `SCAN_COOLDOWN_MS`: (Default 900) Prevents the system from registering duplicate scans if the user holds the card on the reader for too long.
+- `REMOVE_ON_RESCAN`: If set to `true`, scanning an item already in the cart will remove it instead of adding a second quantity.
